@@ -271,15 +271,11 @@ def status_card(label: str, ok: bool, detail: str) -> None:
 
 
 def render_sidebar() -> dict[str, str]:
-    with st.sidebar:
-        st.header("Param\u00e8tres de connexion")
-        st.caption("Configuration locale utilis\u00e9e par le tableau de bord.")
-
-        trino_host = st.text_input("H\u00f4te Trino", os.getenv("TRINO_HOST", "localhost"))
-        trino_port = st.text_input("Port Trino", os.getenv("TRINO_PORT", "8080"))
-        trino_user = st.text_input("Utilisateur Trino", os.getenv("TRINO_USER", "analyst"))
-        ollama_url = st.text_input("URL Ollama", os.getenv("OLLAMA_URL", "http://localhost:11434"))
-        model = st.text_input("Mod\u00e8le IA local", os.getenv("OLLAMA_MODEL", "qwen2.5-coder:1.5b"))
+    trino_host = os.getenv("TRINO_HOST", "localhost")
+    trino_port = os.getenv("TRINO_PORT", "8080")
+    trino_user = os.getenv("TRINO_USER", "analyst")
+    ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
+    model = os.getenv("OLLAMA_MODEL", "qwen2.5-coder:1.5b")
 
     os.environ["TRINO_HOST"] = trino_host
     os.environ["TRINO_PORT"] = trino_port
