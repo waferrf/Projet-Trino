@@ -1,0 +1,7 @@
+*.pdf binary
+*.pbix binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.parquet binary
+*.jar binary

@@ -1,0 +1,5 @@
+.venv/
+__pycache__/
+*.pyc
+streamlit*.log
+data/manju_bhai_sales.csv

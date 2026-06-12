@@ -1,0 +1,128 @@
+services:
+  minio:
+    image: quay.io/minio/minio
+    container_name: minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+
+  minio-init:
+    image: minio/mc
+    container_name: minio-init
+    depends_on:
+      - minio
+    volumes:
+      - ./data:/data:ro
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 minioadmin minioadmin; do
+        echo 'Waiting for MinIO...';
+        sleep 2;
+      done;
+      mc mb -p local/warehouse;
+      mc cp /data/people.csv local/warehouse/raw/people/people.csv;
+      mc cp /data/manju_bhai_sales.csv local/warehouse/raw/sales/manju_bhai_sales.csv;
+      echo 'MinIO warehouse bucket is ready.';
+      "
+
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    environment:
+      POSTGRES_USER: hive
+      POSTGRES_PASSWORD: hive
+      POSTGRES_DB: metastore_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-metastore-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hive -d metastore_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  hive-metastore:
+    build:
+      context: ./hive-metastore
+    image: projet-trino/hive-metastore-postgres:4.0.0
+    container_name: hive-metastore
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    environment:
+      SERVICE_NAME: metastore
+      DB_DRIVER: postgres
+      HIVE_AUX_JARS_PATH: /opt/hadoop/share/hadoop/tools/lib/hadoop-aws-3.3.6.jar,/opt/hadoop/share/hadoop/tools/lib/aws-java-sdk-bundle-1.12.367.jar
+      SERVICE_OPTS: >-
+        -Xmx1G
+        -Djavax.jdo.option.ConnectionDriverName=org.postgresql.Driver
+        -Djavax.jdo.option.ConnectionURL=jdbc:postgresql://postgres:5432/metastore_db
+        -Djavax.jdo.option.ConnectionUserName=hive
+        -Djavax.jdo.option.ConnectionPassword=hive
+        -Ddatanucleus.schema.autoCreateAll=true
+        -Dhive.metastore.schema.verification=false
+    ports:
+      - "9083:9083"
+    volumes:
+      - ./etc/hive/metastore-site.xml:/opt/hive/conf/metastore-site.xml:ro
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    container_name: clickhouse
+    environment:
+      CLICKHOUSE_DB: analytics
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: clickhouse
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ports:
+      - "8123:8123"
+      - "9002:9000"
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./data:/var/lib/clickhouse/user_files
+      - ./clickhouse/init:/docker-entrypoint-initdb.d:ro
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+
+  trino:
+    image: trinodb/trino:481
+    container_name: trino
+    depends_on:
+      minio:
+        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
+      hive-metastore:
+        condition: service_started
+      clickhouse:
+        condition: service_started
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./etc/catalog:/etc/trino/catalog:ro
+      - ./scripts:/project/scripts:ro
+
+volumes:
+  minio-data:
+  postgres-metastore-data:
+  clickhouse-data:
+  ollama-data:

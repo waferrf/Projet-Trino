@@ -1,0 +1,27 @@
+Total Products = SUM(powerbi_product_kpi_overview[total_products])
+
+Total Categories = SUM(powerbi_product_kpi_overview[total_categories])
+
+Total Brands = SUM(powerbi_product_kpi_overview[total_brands])
+
+Average Price = AVERAGE(powerbi_product_category_summary[avg_price])
+
+Average Rating = AVERAGE(powerbi_product_category_summary[avg_rating])
+
+Inventory Value = SUM(powerbi_product_category_summary[inventory_value])
+
+Total Reviews = SUM(powerbi_product_category_summary[total_reviews])
+
+Total Stock = SUM(powerbi_product_category_summary[total_stock])
+
+Low Stock Products =
+CALCULATE(
+    SUM(powerbi_product_stock_summary[total_products]),
+    powerbi_product_stock_summary[stock_status] = "Low stock"
+)
+
+Out Of Stock Products =
+CALCULATE(
+    SUM(powerbi_product_stock_summary[total_products]),
+    powerbi_product_stock_summary[stock_status] = "Out of stock"
+)
